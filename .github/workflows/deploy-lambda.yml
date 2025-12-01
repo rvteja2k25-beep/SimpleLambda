@@ -9,58 +9,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # -----------------------------------------------------
-    # 1. Checkout the repository
-    # -----------------------------------------------------
-    - name: Checkout repository
+
+    - name: Checkout
       uses: actions/checkout@v3
 
-    # -----------------------------------------------------
-    # 2. Install .NET 8
-    # -----------------------------------------------------
-    - name: Setup .NET 8
+    - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: "8.0.x"
 
-    # -----------------------------------------------------
-    # 3. Install Amazon Lambda Tools
-    # -----------------------------------------------------
-    - name: Install Lambda tools
+    - name: Install Lambda Tools
       run: dotnet tool install -g Amazon.Lambda.Tools
 
-    # -----------------------------------------------------
-    # 4. Clean old publish folder (ensures fresh build)
-    # -----------------------------------------------------
+    # Clean fresh publish output
     - name: Clean publish folder
-      working-directory: src/HelloLambda
-      run: rm -rf publish
+      run: rm -rf src/HelloLambda/publish
 
-    # -----------------------------------------------------
-    # 5. Delete old ZIP inside repository (prevents stale zip usage)
-    # -----------------------------------------------------
-    - name: Remove old lambda.zip
-      run: rm -f src/HelloLambda/lambda.zip
-
-    # -----------------------------------------------------
-    # 6. Build and publish the Lambda project
-    # -----------------------------------------------------
-    - name: Build and publish Lambda
+    # Publish Lambda
+    - name: Publish Lambda
       working-directory: src/HelloLambda
       run: |
         dotnet restore
-        dotnet publish -c Release -o publish /p:PublishReadyToRun=false
+        dotnet publish -c Release -o publish
 
-    # -----------------------------------------------------
-    # 7. Create a new zip from the publish folder
-    # -----------------------------------------------------
-    - name: Create new zip package
+    # Create ZIP *inside* publish folder
+    - name: Create deployment zip
       working-directory: src/HelloLambda/publish
-      run: zip -r ../lambda.zip .
+      run: |
+        rm -f lambda.zip
+        zip -r lambda.zip .
 
-    # -----------------------------------------------------
-    # 8. Configure AWS credentials
-    # -----------------------------------------------------
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -68,42 +46,30 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-north-1
 
-    # -----------------------------------------------------
-    # 9. Upload ZIP to Lambda ($LATEST)
-    # -----------------------------------------------------
-    - name: Upload Lambda package to $LATEST
+    # Upload new code to $LATEST
+    - name: Upload Lambda package
       run: |
         aws lambda update-function-code \
           --function-name HelloLambda \
           --zip-file fileb://src/HelloLambda/publish/lambda.zip
 
-    # -----------------------------------------------------
-    # 10. Publish a new Lambda version
-    # -----------------------------------------------------
-    - name: Publish new Lambda version
-      id: publish-version
+    # Wait until Lambda finishes updating
+    - name: Wait for Lambda
+      run: aws lambda wait function-updated --function-name HelloLambda
+
+    # Publish new version
+    - name: Publish version
+      id: pub
       run: |
         VERSION=$(aws lambda publish-version --function-name HelloLambda --query Version --output text)
         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-    # -----------------------------------------------------
-    # 11. Update the prod alias to point to the new version
-    # -----------------------------------------------------
-    - name: Update prod alias
+    # Update alias
+    - name: Update alias prod
       run: |
-        VERSION=${{ steps.publish-version.outputs.version }}
-
-        # Check if alias exists
+        VERSION=${{ steps.pub.outputs.version }}
         if aws lambda get-alias --function-name HelloLambda --name prod >/dev/null 2>&1; then
-          echo "Alias exists — updating to version $VERSION"
-          aws lambda update-alias \
-            --function-name HelloLambda \
-            --name prod \
-            --function-version $VERSION
+          aws lambda update-alias --function-name HelloLambda --name prod --function-version $VERSION
         else
-          echo "Alias does not exist — creating alias prod"
-          aws lambda create-alias \
-            --function-name HelloLambda \
-            --name prod \
-            --function-version $VERSION
+          aws lambda create-alias --function-name HelloLambda --name prod --function-version $VERSION
         fi
