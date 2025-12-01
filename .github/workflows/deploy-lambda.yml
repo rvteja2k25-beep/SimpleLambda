@@ -2,31 +2,27 @@ name: Deploy Lambda (.NET 8)
 
 on:
   push:
-    branches: [ "main" ]   # Pipeline triggers when code is pushed to main
+    branches: [ "main" ]   # Deploy whenever main branch is updated
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest   # GitHub-hosted Linux runner
+    runs-on: ubuntu-latest
 
     steps:
-
     # ------------------------------------------------------------
-    # STEP 1: Check out the source code from GitHub
-    # Required so the pipeline has access to your project files
+    # STEP 1: Checkout code from GitHub
     # ------------------------------------------------------------
     - name: Checkout repository
       uses: actions/checkout@v3
 
     # ------------------------------------------------------------
-    # STEP 2: Clean workspace to avoid using old build artifacts
-    # git clean -fdx removes EVERYTHING not tracked by git
-    # Prevents old publish or zip folders from being reused
+    # STEP 2: Clean workspace to avoid stale ZIP or build artifacts
     # ------------------------------------------------------------
     - name: Clean workspace
       run: git clean -fdx
 
     # ------------------------------------------------------------
-    # STEP 3: Install .NET 8 SDK so we can build a Lambda package
+    # STEP 3: Install .NET 8 SDK
     # ------------------------------------------------------------
     - name: Setup .NET 8
       uses: actions/setup-dotnet@v3
@@ -34,18 +30,21 @@ jobs:
         dotnet-version: "8.0.x"
 
     # ------------------------------------------------------------
-    # STEP 4: Install AWS Lambda tools globally (optional)
-    # Provides CLI commands like: dotnet lambda package
+    # STEP 4: Install AWS Lambda Tools (optional but okay)
     # ------------------------------------------------------------
     - name: Install Lambda tools
       run: dotnet tool install -g Amazon.Lambda.Tools
 
     # ------------------------------------------------------------
-    # STEP 5: Build and publish the Lambda project
-    # - Restore dependencies
-    # - Build in Release mode
-    # - Publish into folder: /publish
-    # - Disable ReadyToRun (required for Lambda)
+    # STEP 5: Ensure publish folder is fully removed
+    # (Fixes issue with old code being reused)
+    # ------------------------------------------------------------
+    - name: Clean publish folder
+      working-directory: src/HelloLambda
+      run: rm -rf publish
+
+    # ------------------------------------------------------------
+    # STEP 6: Build and publish Lambda project fresh
     # ------------------------------------------------------------
     - name: Build and publish Lambda
       working-directory: src/HelloLambda
@@ -54,16 +53,14 @@ jobs:
         dotnet publish -c Release -o publish /p:PublishReadyToRun=false
 
     # ------------------------------------------------------------
-    # STEP 6: Create a deployment ZIP from the publish folder
-    # Lambda requires a ZIP containing all compiled DLLs
+    # STEP 7: Package the published output into a ZIP file
     # ------------------------------------------------------------
     - name: Create zip package
       working-directory: src/HelloLambda/publish
       run: zip -r ../../lambda.zip .
 
     # ------------------------------------------------------------
-    # STEP 7: Configure AWS credentials for secure access
-    # Reads values from GitHub Secrets (never hard-code keys!)
+    # STEP 8: Configure AWS authentication credentials
     # ------------------------------------------------------------
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -73,8 +70,7 @@ jobs:
         aws-region: eu-north-1
 
     # ------------------------------------------------------------
-    # STEP 8: Upload ZIP to Lambda ($LATEST)
-    # Replaces the latest version code with the newly built ZIP
+    # STEP 9: Upload ZIP to Lambda ($LATEST)
     # ------------------------------------------------------------
     - name: Deploy to AWS Lambda ($LATEST)
       run: |
@@ -83,15 +79,13 @@ jobs:
           --zip-file fileb://src/HelloLambda/lambda.zip
 
     # ------------------------------------------------------------
-    # STEP 9: WAIT until Lambda finishes updating
-    # Prevents this error:
-    #  ResourceConflictException: update is in progress
-    # Polls state until Lambda becomes "Active" again
+    # STEP 10: WAIT for Lambda update to finish
+    # Prevents ResourceConflictException when publishing version
     # ------------------------------------------------------------
     - name: Wait for Lambda update to complete
       run: |
         echo "Waiting for Lambda update to finish..."
-        for i in {1..10}; do
+        for i in {1..20}; do   # wait up to 60 seconds
           STATUS=$(aws lambda get-function-configuration --function-name HelloLambda --query State --output text)
           if [ "$STATUS" = "Active" ]; then
             echo "Lambda is active and ready."
@@ -102,9 +96,7 @@ jobs:
         done
 
     # ------------------------------------------------------------
-    # STEP 10: Publish an immutable Lambda version 
-    # Example: 1, 2, 3, 4...
-    # We store the version number to update alias in next step
+    # STEP 11: Publish a new Lambda version (immutable)
     # ------------------------------------------------------------
     - name: Publish new Lambda version
       id: publish_version
@@ -116,26 +108,22 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     # ------------------------------------------------------------
-    # STEP 11: Create or update the "prod" alias
-    # If alias exists -> update it to new version
-    # If alias does NOT exist -> create it
-    # This ensures traffic always points to newest stable version
+    # STEP 12: Create or update alias "prod" to latest version
     # ------------------------------------------------------------
     - name: Update or create alias (prod)
       run: |
         VERSION=${{ steps.publish_version.outputs.version }}
-        echo "Deploying version $VERSION to alias: prod"
+        echo "Updating alias 'prod' to version $VERSION..."
 
         if aws lambda get-alias --function-name HelloLambda --name prod >/dev/null 2>&1; then
-          echo "Alias exists — updating to new version..."
           aws lambda update-alias \
             --function-name HelloLambda \
             --name prod \
             --function-version $VERSION
         else
-          echo "Alias does not exist — creating it..."
           aws lambda create-alias \
             --function-name HelloLambda \
             --name prod \
             --function-version $VERSION
         fi
+
