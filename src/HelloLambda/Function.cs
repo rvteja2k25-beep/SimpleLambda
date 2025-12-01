@@ -16,6 +16,6 @@ public class Function
     /// <returns></returns>
     public string FunctionHandler(string input, ILambdaContext context)
     {
-        return "check" + input.ToUpper();
+        return "checked" + input.ToUpper();
     }
 }
