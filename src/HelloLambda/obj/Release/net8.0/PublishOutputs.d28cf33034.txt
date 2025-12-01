@@ -1,0 +1,6 @@
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\publish\HelloLambda.dll
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\publish\HelloLambda.deps.json
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\publish\HelloLambda.runtimeconfig.json
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\publish\HelloLambda.pdb
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\publish\Amazon.Lambda.Core.dll
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\publish\Amazon.Lambda.Serialization.SystemTextJson.dll

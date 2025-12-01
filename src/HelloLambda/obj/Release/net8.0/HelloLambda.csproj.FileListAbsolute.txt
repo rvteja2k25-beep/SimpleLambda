@@ -1,0 +1,17 @@
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\bin\Release\net8.0\HelloLambda.deps.json
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\bin\Release\net8.0\HelloLambda.runtimeconfig.json
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\bin\Release\net8.0\HelloLambda.dll
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\bin\Release\net8.0\HelloLambda.pdb
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\bin\Release\net8.0\Amazon.Lambda.Core.dll
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\bin\Release\net8.0\Amazon.Lambda.Serialization.SystemTextJson.dll
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\HelloLambda.csproj.AssemblyReference.cache
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\HelloLambda.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\HelloLambda.AssemblyInfoInputs.cache
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\HelloLambda.AssemblyInfo.cs
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\HelloLambda.csproj.CoreCompileInputs.cache
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\HelloLam.A4C0E342.Up2Date
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\HelloLambda.dll
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\refint\HelloLambda.dll
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\HelloLambda.pdb
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\HelloLambda.genruntimeconfig.cache
+C:\Users\rvtej\AwsLambdaDemo\HelloLambda\src\HelloLambda\obj\Release\net8.0\ref\HelloLambda.dll
