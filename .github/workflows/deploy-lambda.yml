@@ -9,27 +9,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # ------------------------------------------------------------
+    # Clean workspace (PREVENTS old publish folder being zipped)
+    # ------------------------------------------------------------
+    - name: Clean workspace
+      run: git clean -fdx
+
+    # Checkout repo
     - name: Checkout repository
       uses: actions/checkout@v3
 
+    # Setup .NET 8
     - name: Setup .NET 8
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: "8.0.x"
 
+    # Install AWS Lambda tools (optional but fine)
     - name: Install Lambda tools
       run: dotnet tool install -g Amazon.Lambda.Tools
 
+    # ------------------------------------------------------------
+    # Build Lambda project
+    # ------------------------------------------------------------
     - name: Build and publish Lambda
       working-directory: src/HelloLambda
       run: |
         dotnet restore
         dotnet publish -c Release -o publish /p:PublishReadyToRun=false
 
+    # ------------------------------------------------------------
+    # Create deployment ZIP
+    # ------------------------------------------------------------
     - name: Create zip package
       working-directory: src/HelloLambda/publish
       run: zip -r ../../lambda.zip .
 
+    # ------------------------------------------------------------
+    # AWS Credentials
+    # ------------------------------------------------------------
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -37,21 +55,39 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-north-1
 
+    # ------------------------------------------------------------
+    # Upload ZIP → $LATEST
+    # ------------------------------------------------------------
     - name: Deploy to AWS Lambda ($LATEST)
       run: |
         aws lambda update-function-code \
           --function-name HelloLambda \
           --zip-file fileb://src/HelloLambda/lambda.zip
 
+    # ------------------------------------------------------------
+    # Publish new version
+    # ------------------------------------------------------------
     - name: Publish new Lambda version
       id: publish_version
       run: |
         VERSION=$(aws lambda publish-version --function-name HelloLambda --query Version --output text)
         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-    - name: Update alias to new version (prod)
+    # ------------------------------------------------------------
+    # Create or Update alias
+    # ------------------------------------------------------------
+    - name: Update or create alias (prod)
       run: |
-        aws lambda update-alias \
-          --function-name HelloLambda \
-          --name prod \
-          --function-version ${{ steps.publish_version.outputs.version }}
+        if aws lambda get-alias --function-name HelloLambda --name prod >/dev/null 2>&1; then
+          echo "Alias exists — updating..."
+          aws lambda update-alias \
+            --function-name HelloLambda \
+            --name prod \
+            --function-version ${{ steps.publish_version.outputs.version }}
+        else
+          echo "Alias does not exist — creating..."
+          aws lambda create-alias \
+            --function-name HelloLambda \
+            --name prod \
+            --function-version ${{ steps.publish_version.outputs.version }}
+        fi
