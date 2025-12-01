@@ -24,7 +24,7 @@ jobs:
       working-directory: src/HelloLambda
       run: |
         dotnet restore
-        dotnet publish -c Release -o publish
+        dotnet publish -c Release -o publish /p:PublishReadyToRun=false
 
     - name: Create zip package
       working-directory: src/HelloLambda/publish
@@ -37,8 +37,21 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-north-1
 
-    - name: Deploy to AWS Lambda using AWS CLI
+    - name: Deploy to AWS Lambda ($LATEST)
       run: |
         aws lambda update-function-code \
           --function-name HelloLambda \
           --zip-file fileb://src/HelloLambda/lambda.zip
+
+    - name: Publish new Lambda version
+      id: publish_version
+      run: |
+        VERSION=$(aws lambda publish-version --function-name HelloLambda --query Version --output text)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Update alias to new version (prod)
+      run: |
+        aws lambda update-alias \
+          --function-name HelloLambda \
+          --name prod \
+          --function-version ${{ steps.publish_version.outputs.version }}
